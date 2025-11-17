@@ -195,7 +195,7 @@ describe('Arquitectura BFF + Microservicios', () => {
   });
 
   describe('Infraestructura Docker', () => {
-    const dockerComposePath = path.join(__dirname, '../infra/docker-compose.yml');
+    const dockerComposePath = path.join(__dirname, '../docker-compose.yml');
     
     test('Debe existir archivo docker-compose.yml', () => {
       expect(fs.existsSync(dockerComposePath)).toBe(true);
