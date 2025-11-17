@@ -1,0 +1,11 @@
+{
+  "name": "architecture-tests",
+  "version": "1.0.0",
+  "description": "Pruebas de validación de arquitectura",
+  "scripts": {
+    "test": "jest"
+  },
+  "devDependencies": {
+    "jest": "^29.7.0"
+  }
+}

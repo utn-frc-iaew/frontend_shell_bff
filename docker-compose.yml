@@ -1,0 +1,158 @@
+version: '3.8'
+
+services:
+  # MongoDB Database
+  # mongodb:
+  #   image: mongo:7
+  #   container_name: mongodb-main
+  #   restart: always
+  #   environment:
+  #     MONGO_INITDB_ROOT_USERNAME: admin
+  #     MONGO_INITDB_ROOT_PASSWORD: password123
+  #   ports:
+  #     - "27017:27017"
+  #   volumes:
+  #     - mongodb_data:/data/db
+  #   networks:
+  #     - app-network
+
+  # API User Service
+  api-user:
+    build: ./api-user
+    container_name: api-user
+    restart: always
+    ports:
+      - "5001:5001"
+    environment:
+      PORT: 5001
+      NODE_ENV: production
+      MONGODB_URI: mongodb://admin:password123@mongodb:27017/api-user?authSource=admin
+      AUTH0_DOMAIN: ${AUTH0_DOMAIN}
+      AUTH0_AUDIENCE: https://api-user
+    # depends_on:
+    #   - mongodb
+    networks:
+      - app-network
+
+  # API Customer Service
+  api-customer:
+    build: ./api-customer
+    container_name: api-customer
+    restart: always
+    ports:
+      - "5002:5002"
+    environment:
+      PORT: 5002
+      NODE_ENV: production
+      MONGODB_URI: mongodb://admin:password123@mongodb:27017/api-customer?authSource=admin
+      AUTH0_DOMAIN: ${AUTH0_DOMAIN}
+      AUTH0_AUDIENCE: https://api-customer
+    # depends_on:
+    #   - mongodb
+    networks:
+      - app-network
+
+  # BFF Shell Service
+  bff-shell:
+    build: ./shell/bff-shell
+    container_name: bff-shell
+    restart: always
+    ports:
+      - "4000:4000"
+    environment:
+      PORT: 4000
+      NODE_ENV: production
+      AUTH0_DOMAIN: ${AUTH0_DOMAIN}
+      AUTH0_AUDIENCE: ${AUTH0_AUDIENCE}
+      AUTH0_CLIENT_ID: ${AUTH0_M2M_CLIENT_ID}
+      AUTH0_CLIENT_SECRET: ${AUTH0_M2M_CLIENT_SECRET}
+      AUTH0_TOKEN_URL: https://${AUTH0_DOMAIN}/oauth/token
+      API_USER_URL: http://api-user:5001
+      API_CUSTOMER_URL: http://api-customer:5002
+      API_USER_AUDIENCE: https://api-user
+      API_CUSTOMER_AUDIENCE: https://api-customer
+      PORTAL_SHELL_URL: http://localhost:3000
+      PORTAL_CHILD_URL: http://localhost:3001
+    depends_on:
+      - api-user
+      - api-customer
+    networks:
+      - app-network
+
+  # BFF Child 1 Service
+  bff-child-1:
+    build: ./portal-child/bff-child-1
+    container_name: bff-child-1
+    restart: always
+    ports:
+      - "4001:4001"
+    environment:
+      PORT: 4001
+      NODE_ENV: production
+      AUTH0_DOMAIN: ${AUTH0_DOMAIN}
+      AUTH0_AUDIENCE: ${AUTH0_AUDIENCE}
+      AUTH0_CLIENT_ID: ${AUTH0_M2M_CLIENT_ID}
+      AUTH0_CLIENT_SECRET: ${AUTH0_M2M_CLIENT_SECRET}
+      AUTH0_TOKEN_URL: https://${AUTH0_DOMAIN}/oauth/token
+      API_USER_URL: http://api-user:5001
+      API_CUSTOMER_URL: http://api-customer:5002
+      API_USER_AUDIENCE: https://api-user
+      API_CUSTOMER_AUDIENCE: https://api-customer
+      PORTAL_SHELL_URL: http://localhost:3000
+      PORTAL_CHILD_URL: http://localhost:3001
+    depends_on:
+      - api-user
+      - api-customer
+    networks:
+      - app-network
+
+  # Portal Shell (Next.js SSR)
+  portal-shell:
+    build: ./shell/portal-shell
+    container_name: portal-shell
+    restart: always
+    ports:
+      - "3000:3000"
+    environment:
+      AUTH0_SECRET: ${AUTH0_SECRET}
+      AUTH0_BASE_URL: http://localhost:3000
+      AUTH0_ISSUER_BASE_URL: https://${AUTH0_DOMAIN}
+      AUTH0_CLIENT_ID: ${AUTH0_CLIENT_ID}
+      AUTH0_CLIENT_SECRET: ${AUTH0_CLIENT_SECRET}
+      AUTH0_AUDIENCE: ${AUTH0_AUDIENCE}
+      BFF_SHELL_URL: http://bff-shell:4000
+      NEXT_PUBLIC_PORTAL_CHILD_URL: http://localhost:3001
+    depends_on:
+      - bff-shell
+    networks:
+      - app-network
+
+  # Portal Child 1 (Vite SPA)
+  portal-child-1:
+    build:
+      context: ./portal-child/portal-child-1
+      args:
+        VITE_AUTH0_DOMAIN: ${AUTH0_DOMAIN}
+        VITE_AUTH0_CLIENT_ID: ${AUTH0_SPA_CLIENT_ID}
+        VITE_AUTH0_AUDIENCE: ${AUTH0_AUDIENCE}
+        VITE_AUTH0_REDIRECT_URI: http://localhost:3001
+        VITE_BFF_CHILD_URL: http://localhost:4001
+        VITE_PORTAL_SHELL_ORIGIN: http://localhost:3000
+    container_name: portal-child-1
+    restart: always
+    ports:
+      - "3001:80"
+    depends_on:
+      - bff-child-1
+    networks:
+      - app-network
+
+networks:
+  app-network:
+    external: true
+    name: infra_app-network
+
+volumes:
+  mongodb_data:
+    external: true
+    name: infra_mongodb_data
